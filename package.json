@@ -1,0 +1,26 @@
+{
+  "name": "com.megumin.cinemachineex",
+  "displayName": "Megumin CinemachineEx",
+  "version": "0.0.1",
+  "unity": "2023.2",
+  "description": "Wizard Fast Created.",
+  "category": "Megumin",
+  "documentationUrl": "",
+  "changelogUrl": "",
+  "licensesUrl": "",
+  "hideInEditor": false,
+  "keywords": [
+    "PackageWizard",
+    "Megumin",
+    "CinemachineEx"
+  ],
+  "author": {
+    "name": "KumoKyaku",
+    "email": "479813005@qq.com",
+    "url": "https://github.com/KumoKyaku"
+  },
+  "dependencies": {
+    "com.unity.cinemachine": "3.0.0-pre.9",
+    "com.unity.inputsystem": "1.7.0"
+  }
+}
