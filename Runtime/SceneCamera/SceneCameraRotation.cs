@@ -33,6 +33,11 @@ namespace Megumin.Cinemachine
                 return;
             }
 
+            if (deltaTime < 0)
+            {
+                return;
+            }
+
             UpdateInputEnabled();
 
             if (!VirtualCamera.LookAt)
