@@ -46,8 +46,6 @@ namespace Megumin.Cinemachine
         [Space]
         public Vector3 MoveDelta = Vector3.zero;
 
-        [Space]
-        public Vector3 PreviousPosition;
         /// <summary>
         /// 阻尼还没有移动的位移
         /// </summary>
@@ -154,18 +152,18 @@ namespace Megumin.Cinemachine
                 MoveDelta += curState.RawOrientation * new Vector3(0, 0, Zoom.y);
             }
 
+            MoveDelta += DampingDebt;
+
             //阻尼
-            Vector3 finalPos = PreviousPosition + MoveDelta + DampingDebt;
-            Vector3 dampedPos = finalPos;
+            Vector3 dampedDelta = MoveDelta;
             if (deltaTime >= 0)
             {
-                dampedPos = PreviousPosition + VirtualCamera.DetachedFollowTargetDamp(
-                    finalPos - PreviousPosition, Damping, deltaTime);
+                dampedDelta = VirtualCamera.DetachedFollowTargetDamp(
+                    MoveDelta, Damping, deltaTime);
             }
 
-            PreviousPosition = dampedPos;
-            DampingDebt = finalPos - dampedPos;
-            curState.RawPosition = dampedPos;
+            DampingDebt = MoveDelta - dampedDelta;
+            curState.RawPosition += dampedDelta;
         }
 
         public override void ForceCameraPosition(Vector3 pos, Quaternion rot)
@@ -174,7 +172,6 @@ namespace Megumin.Cinemachine
             if (VirtualCamera)
             {
                 VirtualCamera.transform.SetPositionAndRotation(pos, rot);
-                PreviousPosition = pos;
                 DampingDebt = Vector3.zero;
             }
         }
