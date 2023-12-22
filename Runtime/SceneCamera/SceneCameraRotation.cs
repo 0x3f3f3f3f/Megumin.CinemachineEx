@@ -10,14 +10,22 @@ namespace Megumin.Cinemachine
         public override bool IsValid => enabled;
         public override CinemachineCore.Stage Stage => CinemachineCore.Stage.Aim;
 
-        public bool IsRotating = false;
+        [Range(0, 1)]
+        public float Damping = 0f;
+
+        [Space]
         [Range(0.1f, 10)]
         public float HorizontalSpeed = 1f;
         [Range(0.1f, 10)]
         public float VerticalSpeed = 1f;
 
         [Header("Debug")]
+        public bool IsRotating = false;
         public Vector2 MouseDelta = Vector2.zero;
+        Quaternion PreviousOrientation = Quaternion.identity;
+        Quaternion DampingDebt = Quaternion.identity;
+
+        public override float GetMaxDampTime() => Damping;
 
         protected override void OnDisable()
         {
@@ -46,6 +54,9 @@ namespace Megumin.Cinemachine
                 VirtualCamera.LookAt = transform;
             }
 
+            var h = Quaternion.identity;
+            var v = Quaternion.identity;
+
             if (IsRotating)
             {
                 if (MouseDelta != Vector2.zero)
@@ -56,12 +67,31 @@ namespace Megumin.Cinemachine
                     var hAngle = MouseDelta.x * xScale * HorizontalSpeed;
                     var vAngle = MouseDelta.y * yScale * VerticalSpeed * -1;
 
-                    var h = Quaternion.AngleAxis(hAngle, curState.ReferenceUp);
-                    var v = Quaternion.AngleAxis(vAngle, Vector3.right);
+                    h = Quaternion.AngleAxis(hAngle, curState.ReferenceUp);
+                    v = Quaternion.AngleAxis(vAngle, Vector3.right);
 
-                    curState.RawOrientation = h * curState.RawOrientation * v;
                     MouseDelta = Vector2.zero;
                 }
+            }
+
+            if (Damping <= 0)
+            {
+                curState.RawOrientation = h * curState.RawOrientation * v;
+            }
+            else
+            {
+                //阻尼  可能存在潜在bug。
+                var finalRos = h * (DampingDebt * PreviousOrientation) * v;
+                Quaternion dampedOrientation = finalRos;
+                if (deltaTime >= 0)
+                {
+                    float t = VirtualCamera.DetachedFollowTargetDamp(1, Damping, deltaTime);
+                    dampedOrientation = Quaternion.Slerp(PreviousOrientation, finalRos, t);
+                }
+
+                PreviousOrientation = dampedOrientation;
+                DampingDebt = finalRos * Quaternion.Inverse(dampedOrientation);
+                curState.RawOrientation = dampedOrientation;
             }
         }
 
@@ -71,6 +101,8 @@ namespace Megumin.Cinemachine
             if (VirtualCamera)
             {
                 VirtualCamera.transform.SetPositionAndRotation(pos, rot);
+                PreviousOrientation = rot;
+                DampingDebt = Quaternion.identity;
             }
         }
 

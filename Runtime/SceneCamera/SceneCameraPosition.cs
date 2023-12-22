@@ -11,18 +11,18 @@ namespace Megumin.Cinemachine
         public override bool IsValid => enabled;
         public override CinemachineCore.Stage Stage => CinemachineCore.Stage.Body;
 
+        [Range(0, 5)]
+        public float Damping = 0.5f;
+
         /// <summary>
         /// 冲刺
         /// </summary>
-        public bool IsSprint = false;
+        [Space]
         public float SprintScale = 5f;
 
-        [Header("Drag")]
-        public bool IsDraging = false;
         [Range(0.1f, 10)]
         public float DragSpeed = 1f;
 
-        [Header("Zoom")]
         public bool EnabledZoom = true;
 
         [Header("Flythrough")]
@@ -32,13 +32,29 @@ namespace Megumin.Cinemachine
         public float MaxSpeed = 2f;
 
         [Header("Debug")]
+        public bool IsSprint = false;
+        public bool IsDraging = false;
         public Camera OutputCamera = null;
         public Vector2 MouseDelta = Vector2.zero;
         public float LastSpeed = 1f;
         public Vector3 InputDir = Vector3.zero;
         public Vector2 Zoom = Vector2.zero;
+
+        /// <summary>
+        /// 当前更新应该移动的位移
+        /// </summary>
         [Space]
         public Vector3 MoveDelta = Vector3.zero;
+
+        [Space]
+        public Vector3 PreviousPosition;
+        /// <summary>
+        /// 阻尼还没有移动的位移
+        /// </summary>
+        public Vector3 DampingDebt;
+
+
+        public override float GetMaxDampTime() => Damping;
 
         protected override void OnDisable()
         {
@@ -82,6 +98,7 @@ namespace Megumin.Cinemachine
                 VirtualCamera.Follow = transform;
             }
 
+            MoveDelta = default;
             if (IsDraging)
             {
                 if (MouseDelta != Vector2.zero && OutputCamera)
@@ -99,8 +116,6 @@ namespace Megumin.Cinemachine
                     worldDelta *= speed;
 
                     MoveDelta = worldDelta * -1;
-
-                    curState.RawPosition += MoveDelta;
                     MouseDelta = Vector2.zero;
                 }
             }
@@ -127,8 +142,6 @@ namespace Megumin.Cinemachine
                     const float FlyScale = 3f;
 
                     MoveDelta = deltaTime * speed * FlyScale * moveDir;
-
-                    curState.RawPosition += MoveDelta;
                 }
                 else
                 {
@@ -138,9 +151,21 @@ namespace Megumin.Cinemachine
 
             if (EnabledZoom && Zoom != Vector2.zero)
             {
-                MoveDelta = curState.RawOrientation * new Vector3(0, 0, Zoom.y);
-                curState.RawPosition += MoveDelta;
+                MoveDelta += curState.RawOrientation * new Vector3(0, 0, Zoom.y);
             }
+
+            //阻尼
+            Vector3 finalPos = PreviousPosition + MoveDelta + DampingDebt;
+            Vector3 dampedPos = finalPos;
+            if (deltaTime >= 0)
+            {
+                dampedPos = PreviousPosition + VirtualCamera.DetachedFollowTargetDamp(
+                    finalPos - PreviousPosition, Damping, deltaTime);
+            }
+
+            PreviousPosition = dampedPos;
+            DampingDebt = finalPos - dampedPos;
+            curState.RawPosition = dampedPos;
         }
 
         public override void ForceCameraPosition(Vector3 pos, Quaternion rot)
@@ -149,6 +174,8 @@ namespace Megumin.Cinemachine
             if (VirtualCamera)
             {
                 VirtualCamera.transform.SetPositionAndRotation(pos, rot);
+                PreviousPosition = pos;
+                DampingDebt = Vector3.zero;
             }
         }
 
