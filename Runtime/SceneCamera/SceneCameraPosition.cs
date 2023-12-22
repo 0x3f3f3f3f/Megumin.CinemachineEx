@@ -41,7 +41,7 @@ namespace Megumin.Cinemachine
         public Vector2 Zoom = Vector2.zero;
 
         /// <summary>
-        /// 当前更新应该移动的位移
+        /// 当前更新根据输入计算得到的移动位移
         /// </summary>
         [Space]
         public Vector3 MoveDelta = Vector3.zero;
@@ -152,17 +152,22 @@ namespace Megumin.Cinemachine
                 MoveDelta += curState.RawOrientation * new Vector3(0, 0, Zoom.y);
             }
 
-            MoveDelta += DampingDebt;
+            var totalMoveDelta = MoveDelta + DampingDebt;
+
+            if (totalMoveDelta == Vector3.zero)
+            {
+                return;
+            }
 
             //阻尼
-            Vector3 dampedDelta = MoveDelta;
+            Vector3 dampedDelta = totalMoveDelta;
             if (deltaTime >= 0)
             {
                 dampedDelta = VirtualCamera.DetachedFollowTargetDamp(
-                    MoveDelta, Damping, deltaTime);
+                    totalMoveDelta, Damping, deltaTime);
             }
 
-            DampingDebt = MoveDelta - dampedDelta;
+            DampingDebt = totalMoveDelta - dampedDelta;
             curState.RawPosition += dampedDelta;
         }
 
